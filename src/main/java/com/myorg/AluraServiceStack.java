@@ -30,7 +30,7 @@ public class AluraServiceStack extends Stack {
                                 .containerPort(8080)
                                 .containerName("app_ola")
                                 .build())
-                .memoryLimitMiB(2048)       // Default is 512
+                .memoryLimitMiB(1024)       // Default is 512
                 .publicLoadBalancer(true)   // Default is true
                 .build();
     }
