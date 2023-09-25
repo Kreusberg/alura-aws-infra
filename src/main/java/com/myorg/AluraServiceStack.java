@@ -1,15 +1,10 @@
 package com.myorg;
 
-import software.amazon.awscdk.Fn;
-import software.amazon.awscdk.RemovalPolicy;
-import software.amazon.awscdk.Stack;
-import software.amazon.awscdk.StackProps;
+import software.amazon.awscdk.*;
+import software.amazon.awscdk.services.applicationautoscaling.EnableScalingProps;
 import software.amazon.awscdk.services.ecr.IRepository;
 import software.amazon.awscdk.services.ecr.Repository;
-import software.amazon.awscdk.services.ecs.AwsLogDriverProps;
-import software.amazon.awscdk.services.ecs.Cluster;
-import software.amazon.awscdk.services.ecs.ContainerImage;
-import software.amazon.awscdk.services.ecs.LogDriver;
+import software.amazon.awscdk.services.ecs.*;
 import software.amazon.awscdk.services.ecs.patterns.ApplicationLoadBalancedFargateService;
 import software.amazon.awscdk.services.ecs.patterns.ApplicationLoadBalancedTaskImageOptions;
 import software.amazon.awscdk.services.logs.LogGroup;
@@ -29,16 +24,16 @@ public class AluraServiceStack extends Stack {
         Map<String, String> autenticacao = new HashMap<>();
         autenticacao.put("SPRING_DATASOURCE_URL", "jdbc:mysql://" + Fn.importValue("pedidos-db-endpoint" + ":3306/alurafood-pedidos?createDatabaseIfNotExist=true"));
         autenticacao.put("SPRING_DATASOURCE_USERNAME", "admin");
-        autenticacao.put("sPRING_DATASOURCE_PASSWORD", Fn.importValue("pedidos-db-senha"));
+        autenticacao.put("SPRING_DATASOURCE_PASSWORD", Fn.importValue("pedidos-db-senha"));
 
         IRepository IRepository = Repository.fromRepositoryName(this, "repositorio", "img-pedidos-ms");
 
         // Create a load-balanced Fargate service and make it public
-        ApplicationLoadBalancedFargateService.Builder.create(this, "AluraService")
+        ApplicationLoadBalancedFargateService aluraService = ApplicationLoadBalancedFargateService.Builder.create(this, "AluraService")
                 .serviceName("alura-service-ola")
                 .cluster(cluster)           // Required
                 .cpu(512)                   // Default is 256
-                .desiredCount(3)            // Quantidade de instâncias // Default is 1
+                .desiredCount(1)            // Quantidade de instâncias // Default is 1
                 .listenerPort(8080)
                 .assignPublicIp(true)       // Ter IP público (true/false)
                 .taskImageOptions(
@@ -58,5 +53,22 @@ public class AluraServiceStack extends Stack {
                 .memoryLimitMiB(1024)       // Default is 512
                 .publicLoadBalancer(true)   // Default is true
                 .build();
+
+        ScalableTaskCount scalableTarget = aluraService.getService().autoScaleTaskCount(EnableScalingProps.builder()
+                .minCapacity(1) // quantidade mínima de instâncias que queremos rodando
+                .maxCapacity(3) // // quantidade máxima de instâncias que queremos rodando
+                .build());
+        scalableTarget.scaleOnCpuUtilization("CpuScaling", CpuUtilizationScalingProps.builder()
+                .targetUtilizationPercent(70) // porcentagem necessária de uso da CPU para que uma nova instância suba
+                        .scaleInCooldown(Duration.minutes(3)) // tempo necessário para que uma nova instância suba
+                        .scaleOutCooldown(Duration.minutes(2)) // tempo necessário para que uma nova instância seja destruída
+                .build());
+        scalableTarget.scaleOnMemoryUtilization("MemoryScaling", MemoryUtilizationScalingProps.builder()
+                .targetUtilizationPercent(65) // porcentagem necessária de uso da memória para que uma nova instância suba
+                        .scaleInCooldown(Duration.minutes(3)) // tempo necessário para que uma nova instância suba
+                        .scaleOutCooldown(Duration.minutes(2)) // tempo necessário para que uma nova instância seja destruída
+                .build());
+
+
     }
 }
