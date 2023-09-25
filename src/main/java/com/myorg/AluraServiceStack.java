@@ -34,7 +34,7 @@ public class AluraServiceStack extends Stack {
                 .serviceName("alura-service-ola")
                 .cluster(cluster)           // Required
                 .cpu(512)                   // Default is 256
-                .desiredCount(1)            // Quantidade de instâncias // Default is 1
+                .desiredCount(3)            // Quantidade de instâncias // Default is 1
                 .listenerPort(8080)
                 .assignPublicIp(true)       // Ter IP público (true/false)
                 .taskImageOptions(
